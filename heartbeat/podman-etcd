@@ -267,7 +267,7 @@ The directory where the resource agent stores its backups.
 </parameters>
 
 <actions>
-<action name="start"        timeout="600s" />
+<action name="start"        timeout="300s" />
 <action name="stop"         timeout="90s" />
 <action name="monitor"      timeout="25s" interval="30s" depth="0" />
 <action name="meta-data"    timeout="5s" />
@@ -1573,6 +1573,7 @@ podman_start()
 			local active_resources_count
 			active_resources_count=$(get_truly_active_resources_count)
 			ocf_log info "found '$active_resources_count' active etcd resources (active: '$OCF_RESKEY_CRM_meta_notify_active_resource', stop: '$OCF_RESKEY_CRM_meta_notify_stop_resource')"
+			ocf_log info "DEBUG: truly_active_count=$active_resources_count, raw_active='$OCF_RESKEY_CRM_meta_notify_active_resource', stop='$OCF_RESKEY_CRM_meta_notify_stop_resource'"
 			case "$active_resources_count" in
 			1)
 				if [ "$(attribute_learner_node get)" = "$(get_peer_node_name)" ]; then
@@ -1587,6 +1588,7 @@ podman_start()
 				local start_resources_count
 				start_resources_count=$(echo "$OCF_RESKEY_CRM_meta_notify_start_resource" | wc -w)
 				ocf_log info "found '$start_resources_count' starting etcd resources (meta notify environment variable: '$OCF_RESKEY_CRM_meta_notify_start_resource')"
+				ocf_log info "DEBUG: start_count=$start_resources_count, start='$OCF_RESKEY_CRM_meta_notify_start_resource'"
 
 				# we need to compare the revisions in any of the following branches
 				# so call the function only once here
