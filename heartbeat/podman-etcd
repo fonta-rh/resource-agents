@@ -1643,17 +1643,9 @@ podman_start()
 		fi
 	fi
 
-	podman_create_mounts
-	local run_opts="--detach --name=${CONTAINER} --replace"
-
-	run_opts="$run_opts --oom-score-adj=${OCF_RESKEY_oom}"
-
-	# check to see if the container has already started
-	podman_simple_status
-	if [ $? -eq $OCF_SUCCESS ]; then
-		return "$OCF_SUCCESS"
-	fi
-
+	# IMPORTANT: Check for force-new-cluster deadlock BEFORE checking container status
+	# If we check container status first and it's already running, we return early
+	# and never get to detect the deadlock condition
 	if ocf_is_true "$JOIN_AS_LEARNER"; then
 		# Check if peer needs to force-new-cluster first
 		# This prevents a deadlock where we wait for the peer to add us as learner,
@@ -1714,6 +1706,17 @@ podman_start()
 		fi
 
 		archive_data_folder
+	fi
+
+	podman_create_mounts
+	local run_opts="--detach --name=${CONTAINER} --replace"
+
+	run_opts="$run_opts --oom-score-adj=${OCF_RESKEY_oom}"
+
+	# check to see if the container has already started
+	podman_simple_status
+	if [ $? -eq $OCF_SUCCESS ]; then
+		return "$OCF_SUCCESS"
 	fi
 
 	ocf_log info "check for changes in pod manifest to decide if the container should be reused or replaced"
