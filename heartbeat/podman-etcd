@@ -1655,6 +1655,44 @@ podman_start()
 	fi
 
 	if ocf_is_true "$JOIN_AS_LEARNER"; then
+		# Check if peer needs to force-new-cluster first
+		# This prevents a deadlock where we wait for the peer to add us as learner,
+		# but the peer has lost quorum and needs to restart with force-new-cluster first.
+		# By failing fast here, we let Pacemaker recalculate and restart the peer first.
+		#
+		# We retry this check a few times because there's a race condition:
+		# - We start and see peer is active, so we decide to join as learner
+		# - But peer may have just lost quorum (when we were killed)
+		# - Peer's next monitor will detect "no leader" and set force_new_cluster
+		# - This can take 15-30 seconds (monitor interval is 30s, but could run sooner)
+		# - We give it up to 60 seconds to detect the condition
+		local fnc_check_retries=12
+		local fnc_check_interval=5
+		local peer_node=$(get_peer_node_name)
+
+		ocf_log info "checking if peer ($peer_node) needs force-new-cluster before joining as learner (will check for $((fnc_check_retries * fnc_check_interval)) seconds)"
+		for try in $(seq $fnc_check_retries); do
+			if ! fnc_holders=$(get_force_new_cluster); then
+				ocf_exit_reason "Failed to get force_new_cluster node holders while joining as learner"
+				return "$OCF_ERR_GENERIC"
+			fi
+
+			if echo "$fnc_holders" | grep -qw "$peer_node"; then
+				ocf_log warn "peer ($peer_node) needs to force-new-cluster but we are trying to join as learner"
+				ocf_log warn "this creates a deadlock: peer cannot add us until it restarts with force-new-cluster"
+				ocf_log warn "failing fast to allow Pacemaker to restart peer first (will retry in a few seconds)"
+				ocf_exit_reason "Peer node ($peer_node) needs force-new-cluster, cannot join as learner. Pacemaker should restart peer first."
+				return "$OCF_ERR_GENERIC"
+			fi
+
+			if [ "$try" -lt "$fnc_check_retries" ]; then
+				ocf_log info "peer does not need force-new-cluster yet (check $try/$fnc_check_retries). Waiting $fnc_check_interval seconds before next check..."
+				sleep $fnc_check_interval
+			fi
+		done
+
+		ocf_log info "peer does not need force-new-cluster after $fnc_check_retries checks. Proceeding to join as learner."
+
 		local wait_timeout_sec=$((10*60))
 		local poll_interval_sec=5
 		local retries=$(( wait_timeout_sec / poll_interval_sec ))
