@@ -1656,7 +1656,7 @@ podman_start()
 		ocf_log info "checking if peer ($peer_node) needs force-new-cluster before joining as learner"
 		if ! fnc_holders=$(get_force_new_cluster); then
 			ocf_exit_reason "Failed to get force_new_cluster node holders while joining as learner"
-			return "$OCF_ERR_GENERIC"
+			return $OCF_ERR_GENERIC
 		fi
 
 		if echo "$fnc_holders" | grep -qw "$peer_node"; then
@@ -1664,7 +1664,7 @@ podman_start()
 			ocf_log warn "this creates a deadlock: peer cannot add us until it restarts with force-new-cluster"
 			ocf_log warn "failing fast to allow Pacemaker to restart peer first"
 			ocf_exit_reason "Peer node ($peer_node) needs force-new-cluster, cannot join as learner. Pacemaker should restart peer first."
-			return "$OCF_ERR_GENERIC"
+			return $OCF_NOT_RUNNING
 		fi
 
 		ocf_log info "peer does not need force-new-cluster, proceeding to join as learner"
@@ -1700,7 +1700,7 @@ podman_start()
 	# check to see if the container has already started
 	podman_simple_status
 	if [ $? -eq $OCF_SUCCESS ]; then
-		return "$OCF_SUCCESS"
+		return $OCF_SUCCESS
 	fi
 
 	ocf_log info "check for changes in pod manifest to decide if the container should be reused or replaced"
