@@ -1664,7 +1664,7 @@ podman_start()
 			ocf_log warn "this creates a deadlock: peer cannot add us until it restarts with force-new-cluster"
 			ocf_log warn "failing fast to allow Pacemaker to restart peer first"
 			ocf_exit_reason "Peer node ($peer_node) needs force-new-cluster, cannot join as learner. Pacemaker should restart peer first."
-			return "$OCF_NOT_RUNNING"
+			return "$OCF_ERR_GENERIC"
 		fi
 
 		ocf_log info "peer does not need force-new-cluster, proceeding to join as learner"
